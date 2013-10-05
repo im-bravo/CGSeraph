@@ -1,0 +1,26 @@
+#[HOTKEY]CTRL+F11
+# 在此定義全局變量
+dim arr[10]
+
+
+function main
+# 在此添加由嚮導創建或錄製的代碼
+
+SetInputMode(1)
+
+SetTargetWindow(15598890) 
+MouseMove(300,300)
+MouseLeftClick()
+
+
+
+
+end function
+
+# 在此添加子函數
+
+function abc(byref arra)
+	for i = 1 to ArrayLen(arra, 1)
+		arra[i] = i
+	next
+end function

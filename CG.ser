@@ -1,0 +1,3260 @@
+#[HOTKEY]INSERT
+# 在此定義全局變量
+dim eastPoint
+dim southPoint
+dim startPointEast
+dim startPointSouth
+dim lowEast
+dim lowSouth
+dim highEast
+dim highSouth
+
+dim mapX = 534
+dim mapY = 53
+
+dim itemWinX = 432
+dim itemWinY = 205
+dim itemBlockRangeX = -87
+dim itemBlockRangeY = 57
+dim blockRangeX = 50
+dim blockRangeY = 50
+
+//移動一格時的 x, y 偏移量
+dim xBlock = 32
+dim yBlock = 25
+
+dim waitMM = 100
+dim waitCL = 100
+dim waitPM = 150
+dim waitFound = 100
+dim waitNextWalk = 20
+//在這段時間 check 角色是否進入戰鬥，超過就當已經進入，只是人物和寵物都無法下命令（死亡或狀態）
+dim waitIntoBattle = 4000 
+
+//在左右上下的格數裡移動
+dim movePoint = 2
+
+//找到『技能』欄的左上第一點到真正可以點擊技能第一欄的相對差距
+dim rangeSkX = 70
+dim rangeSkY = 43
+
+/*
+//找尋『職業』、『技能』欄的範圍
+dim rangeSkillLeft = 0
+dim rangeSkillTop = 0
+dim rangeSkillRight = 640
+dim rangeSkillBottom = 480
+*/
+
+//隊伍中有多少人參戰：1~5
+dim teamNum
+
+//每個戰鬥單位有 32 格的血量
+dim totalBloodBlock = 32
+
+//不斷更新的隊伍中最少血比例的已方單方
+dim leastBloodUnit
+
+//不斷更新的東、南座標
+dim pointForRandomX
+dim pointForRandomY
+
+//顏色的偏移值
+dim CColorR = 10
+dim CColorG = 10
+dim CColorB = 10
+
+//記錄每一回合己方的人物、寵物的血量有多少格，每回合更新一次
+dim arrTeamUnitBloodBlock[10]
+
+//記錄怪物位置是否有怪物，每回合都更新一次
+dim arrMonExist[10]
+
+//looping 超過一定時間就發出 beep 聲
+dim beepTime = 5000
+
+//判斷是否已經有人斷線
+dim isCutLine = false
+
+
+
+######################################################
+//////////////////////////////////////////////////////
+//////////////////////////////////////////////////////
+//////////////////////////////////////////////////////
+
+function IniSet()
+	
+	//============================
+	//===========================
+	//0 = check window ID
+	//1 = 點礦
+	//2 = 護士升急救
+	//3 = 要入戰鬥畫面的練功、練技
+	dim global scriptMode = 3
+	
+	
+	//==============================
+	//==============================
+	//沒魔力時的處理
+	//0 = 全體登出
+	//1 = 發出 beep 聲
+	//2 = 坎村回補
+	//3 = 食料理
+	dim global whatToDoNoMagic = 3
+	
+	//true = 坎村補血後賣石，多數用於坎村打怪
+	//false = 坎村補血後不賣石，直接回到打怪點，多數用於升技
+	dim global canTownIfSellStone = false
+	
+	
+	//=============================
+	//=============================
+	//是否需要檢查怪物情況
+	//只有少數練技不打怪時才設置 false, 例如傳教補血或格鬥明鏡等
+	dim global needToCheckMon = true
+	
+	
+	//==================================
+	//==================================
+	//是否打牛模式
+	dim global isFightCow = true
+	//0 = 沒有怪
+	//1 = 地牛
+	//2 = 火牛
+	dim global leftSide
+	dim global rightSide
+	
+	
+	//============================
+	//============================
+	// -1 = 不開啟此窗口
+	dim global arrWindows[5]
+	arrWindows[1] = 1050466
+	arrWindows[2] = 1378178
+	arrWindows[3] = 7734992
+	arrWindows[4] = 1640350
+	arrWindows[5] = 2623418
+	
+	
+	//===========================
+	//===========================
+	//只有在護士練技時才需要設定
+	dim global nurseSkill = 0
+	dim global nurseSkillLevel = 0
+	dim global nurseSkillMP = 0
+	
+	
+	//=================================
+	//=================================
+	//1格 = 3% 血
+	//1-33
+	//當血量少於這個比例時使用隊伍中補血單位的技能（如果有）
+	dim global percentToGiveHP = 20
+	
+	//補師在隊伍中的位置
+	//0: 沒有補師
+	//1~5: 補師位置
+	dim global doctorNumber = 4
+	//補師的補血技能位置
+	dim global doctorSkill = 1
+	//補師的補血技能等級
+	dim global doctorSkillLevel = 5
+	//補師的氣絕回覆位置
+	dim global doctorRevive = 4
+	//補師的氣絕回覆等級
+	dim global doctorReviveLevel = 4
+	
+	//補師的單風技能位置
+	dim global doctorWindMagic = 8
+	//補師的單風技能等級
+	dim global doctorWindMagicLevel = 2
+	
+	
+	//==================================
+	//==================================
+	//法師在隊伍中的位置
+	//打牛時才需要設定
+	//0 = 沒有法師
+	dim global magicUserNumber = 1
+	//單風魔法的位置
+	//單風魔法的等級
+	dim global windMagic = 1
+	dim global windMagicLevel = 5
+	
+	//魔寵在隊伍中的位置
+	//打牛時才需要設定
+	dim global magicPetNumber = 0
+	//單風魔法的位置
+	dim global petWindMagic = 3
+	
+	
+	//=======================================
+	//=======================================
+	dim global arrPlayerUseSkill[5]
+	dim global arrPlayerSkill[5]
+	dim global arrPlayerSkLevel[5]
+	dim global arrSkillWithTarget[5]
+	dim global arrTargetSelf[5]
+	dim global arrPlayerNoMagicAtk[5]
+	dim global arrPetSkill[5]
+	dim global arrPetSkillHasTarget[5]
+	
+	# 第一位人物設置
+	//角色是否用技能
+	arrPlayerUseSkill[1] = false
+	//所用技能位置
+	arrPlayerSkill[1] = 2
+	//所用技能等級
+	arrPlayerSkLevel[1] = 7
+	//此技能是否有攻擊目標
+	arrSkillWithTarget[1] = true
+	//攻擊對像：
+	//true: 技能對像是自己 false: 技能對像是怪物
+	arrTargetSelf[1] = false 
+	//角色沒有魔法時的動作
+	//true: 逃跑
+	//false: 普攻
+	arrPlayerNoMagicAtk[1] = true
+	//寵物所選技能：1 = 普攻，2 = 防守，…
+	arrPetSkill[1] = 1
+	//寵物所選技能的目標：true=怪物，false=不攻擊怪物
+	arrPetSkillHasTarget[1] = true
+	
+	arrPlayerUseSkill[2] = false
+	arrPlayerSkill[2] = 1
+	arrPlayerSkLevel[2] = 2
+	arrSkillWithTarget[2] = true
+	arrTargetSelf[2] = false
+	arrPlayerNoMagicAtk[2] = true
+	arrPetSkill[2] = 1
+	arrPetSkillHasTarget[2] = true
+	
+	arrPlayerUseSkill[3] = false
+	arrPlayerSkill[3] = 3
+	arrPlayerSkLevel[3] = 4
+	arrSkillWithTarget[3] = true
+	arrTargetSelf[3] = false
+	arrPlayerNoMagicAtk[3] = true
+	arrPetSkill[3] = 1
+	arrPetSkillHasTarget[3] = true
+	
+	arrPlayerUseSkill[4] = false
+	arrPlayerSkill[4] = 2
+	arrPlayerSkLevel[4] = 2
+	arrSkillWithTarget[4] = true
+	arrTargetSelf[4] = false
+	arrPlayerNoMagicAtk[4] = true
+	arrPetSkill[4] = 1
+	arrPetSkillHasTarget[4] = true
+	
+	arrPlayerUseSkill[5] = false
+	arrPlayerSkill[5] = 1
+	arrPlayerSkLevel[5] = 5
+	arrSkillWithTarget[5] = true
+	arrTargetSelf[5] = false
+	arrPlayerNoMagicAtk[5] = true
+	arrPetSkill[5] = 1
+	arrPetSkillHasTarget[5] = true
+	
+	
+	//============================================
+	//============================================
+	//記錄寵物是否有魔力
+	dim global arrIfPetHasMagic[5]
+	
+	//記錄人物是否有魔力啟動魔法
+	dim global arrIfPlayerHasMagic[5]
+	
+	//記錄人物是否有料理在身上
+	dim global arrIfPlayerHasFood[5]
+	
+	//初始化全部人物、寵物有魔力，人物帶有料理
+	for i = 1 to 5
+		arrIfPetHasMagic[i] = true
+		arrIfPlayerHasMagic[i] = true
+		arrIfPlayerHasFood[i] = true
+	next
+	
+	
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function ClearRewardWin()
+	
+	//如果有打贏後出現的所得經驗、物品窗口，就按中間位置去除他
+	if FindImageEX("reward.sel",Color(CColorR,CColorG, CColorB),266+3,26+22,493+3,202+22,true,FoundX,FoundY) then
+		MoveToCenter()
+		MouseLeftClick()
+		Wait(waitCL)
+	end if
+	
+end function
+
+////////////////////////////////////
+
+function FindCurrentPoint()
+	
+	ClearRewardWin()
+	
+	if ReadNumberEX(DigitImgs2,Color(CColorR,CColorG, CColorB),508+3,52+22,525+3,61+22,true,num) then
+		eastPoint = num
+	else
+		Print("找不到東座標")
+	end if
+	
+	//找南座標
+	if ReadNumberEX(DigitImgs2,Color(CColorR,CColorG, CColorB),616+3,52+22,633+3,61+22,true,num) then
+		southPoint = num
+	else
+		Print("找不到南座標")
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+//效果：開啟地圖并使其在固定位置
+function SetMap()
+	
+	//判斷地圖是否已經開啟
+	//如果沒開啟的話開啟
+	if FindImageEX("mapClose.sel",Color(CColorR,CColorG, CColorB),617+3,3+22,637+3,23+22,true,FoundX,FoundY) then
+		MoveAndClick(FoundX+5, FoundY+5)
+	else
+		print("can not find mapClose.sel, the map may open.")
+	end if
+	
+	
+	if FindImageEX("mapOpen.sel",Color(CColorR,CColorG, CColorB),617+3,3+22,637+3,23+22,true,FoundX,FoundY) then
+		
+		//調較『地圖』窗口的位置
+		if FindImageEX("map.sel",Color(CColorR,CColorG, CColorB),371+3,3+22,637+3,145+22,true,FoundX,FoundY) then
+			
+			//print("mapFoundX: " & FoundX & ", mapFoundY: " & FoundY)
+			//print("mapX: " & mapX & ", mapY: " & mapY)
+			
+			if not(FoundX = mapX and FoundY = mapY) then
+				Drag(FoundX, FoundY, mapX, mapY)
+			end if
+			
+		else
+			print("can not find map.sel")
+		end if
+	else
+		print("can not find mapOpen.sel")
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function Drag(srcX, srcY, destX, destY)
+	
+	MouseMove(srcX, srcY)
+	Wait(waitMM)
+	MouseLeftDown()
+	Wait(waitCL)
+	
+	MouseMove(destX, destY)
+	Wait(waitMM)
+	MouseLeftUp()
+	Wait(waitCL)
+	
+	MoveToCenter()
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+//如果找到指定的技能欄、技能等級欄、寵物技能欄是開啟的話就關閉
+function CloseSkill(name)
+	
+	//防止鼠標擋住了技能欄的窗口
+	MoveToButtom()
+	
+	//如果技能欄開啟了就關閉
+	if CheckIfWinExist(name) then
+		FindCorrectSkillPoint(name, ptXClose, ptYClose)
+		MoveAndClick(ptXClose+210, ptYClose)
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function MoveAndClick(moveX, moveY)
+	
+	MouseMove(moveX, moveY)
+	Wait(waitMM)
+	
+	MouseLeftClick()
+	Wait(waitCL)
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CheckIfWinExist(name)
+	
+	CheckIfWinExist = false
+	
+	if FindImageEX(name,Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+		CheckIfWinExist = true
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+//寵物的技能攻擊，普攻也算技能之一
+function SkillPetAtk(skNum, petNum)
+	
+	MoveToButtom()
+	
+	if CheckIfWinExist("petSkill.sel") = false then
+		OpenPetSkill()
+		Wait(200)
+	end if
+	
+	FindCorrectSkillPoint("petSkill.sel", ptXPetSK, ptYPetSK)
+	
+	if ptXPetSK = null or ptYPetSK = null then
+		Print("the ptXPetSK or ptYPetSK = null.")
+		Print("pls check if out.")
+		Pause()
+	end if
+	
+	MoveAndClick(ptXPetSK + rangeSkX + Rnd()*70, ptYPetSK + rangeSkY + (skNum-1)*16 + Rnd()*5)
+	Wait(100)
+	
+	//如果點選技能後寵物技能欄還沒有消失，判斷為寵物沒魔
+	if FindImageEX("petSkill.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+		PetNormalAtk(petNum)
+		arrIfPetHasMagic[petNum] = false
+	end if
+	
+	/*
+	//如果技能欄還沒有消失
+	if FindImageEX("petSkill.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+		
+		//如果之前選擇的技能是普攻和防守，怎麼還是會沒魔力呢？
+		if skNum = 1 or skNum = 2 then
+			
+			//判斷出應該是中了遺忘魔法
+			//從頭開始依次點擊技能，直到技能欄消失
+			skillNumber = 1
+			do
+				//使用第一招：普攻
+				//為避免寵物是中了遺忘魔法而無法選取攻擊，所以如果還是出現技能欄，就按第二技能：防守…如此類推
+				skillPetAtk(skillNumber)
+				skillNumber = skillNumber + 1
+			loop while FindImageEX("petSkill.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) and skillNumber < 11
+			
+		else
+			
+			//如果之前選擇的技能是需要消耗魔力的，判斷出很大可能是不夠魔力
+			//當然也有可能是中了遺忘魔法，但暫時想不到其他方法
+			arrIfPetHasMagic[petNum] = false
+			skillPetAtk(1, petNum)
+			
+		end if
+	end if
+	*/
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+//人物技能和技能等級的選擇
+function SkillAtk(skNum, skLevel)
+	
+	dim ptXSK
+	dim ptYSK
+	
+	FindCorrectSkillPoint("job.sel", ptXSK, ptYSK)
+	
+	/*
+	if ptXSK = null or ptYSK = null then
+		Print("the ptx or ptY = null.")
+		Print("pls check if out.")
+		Pause()
+	end if
+	*/
+	
+	if (ptXSK > 120 and ptYSK < 70) or ptYSK > 240 or ptYSK < 70 then
+		Drag(ptXSK, ptYSK, 40+PlusMinRnd(10), 140+PlusMinRnd(10))
+		Wait(100)
+		MoveToButtom()
+		FindCorrectSkillPoint("job.sel", ptXSK, ptYSK)
+	end if
+	
+	//點擊技能
+	MoveAndClick(ptXSK + rangeSkX + Rnd()*70, ptYSK + rangeSkY + (skNum-1)*16 + Rnd()*5)
+	
+	Wait(100)
+	/*
+	//直到技能等級的出現
+	while not CheckIfWinExist("playerSkillName.sel")
+		Wait(waitFound)
+		Print("looping in SkillAtk")
+	wend
+	*/
+	MoveAndClick(ptXSK + rangeSkX + Rnd()*70, ptYSK + rangeSkY + (skLevel-1)*16 + Rnd()*5)
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function NormalAtk(name)
+	
+	MoveToButtom()
+	
+	//如果找不到 普攻 按鈕 己經點擊，有可能是點選了技能欄出來
+	if not FindImageEX("normalAtkOpen.sel",Color(CColorR,CColorG, CColorB),354+3,20+22,418+3,40+22,true,FoundX,FoundY) then
+		
+		//如果找不到 普攻 按鈕 沒有被選擇，斷定被蓋上
+		if not FindImageEX("normalAtkClose.sel",Color(CColorR,CColorG, CColorB),354+3,20+22,418+3,40+22,true,FoundX,FoundY) then
+			//那麼關閉技能窗口
+			CloseSkill(name)
+		end if
+		
+		//點擊普攻按鈕
+		MoveAndClick(354+10+Rnd()*10+3, 20+5+Rnd()*5+22)
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CheckIfPetNormalAtkChosen()
+	
+	CheckIfPetNormalAtkChosen = false
+	
+	if FindImageEX("petNormalAtkChosen.sel",Color(CColorR,CColorG, CColorB),362+3,49+22,391+3,62+22,true,FoundX,FoundY) then
+		CheckIfPetNormalAtkChosen = true
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CheckIfPetSkillClose()
+	
+	CheckIfPetSkillClose = false
+	
+	//如果右上角寵物的技能按紐沒有被按下
+	if FindImageEX("petSkillClose.sel",Color(CColorR,CColorG, CColorB),550+3,40+22,625+3,75+22,true,FoundX,FoundY) then
+		CheckIfPetSkillClose = true
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+
+function PetNormalAtk(petNum)
+	
+	MoveToButtom()
+	
+	//如果普攻沒有被選擇
+	if not CheckIfPetNormalAtkChosen() then
+		
+		//如果發現技能欄沒有被按出來
+		if CheckIfpetSkillClose() then
+			//開啟技能欄
+			OpenPetSkill()
+			MoveToButtom()
+		end if
+		
+		//如果技能欄被按出來了
+		if CheckIfWinExist("petSkill.sel") then
+			//用普攻
+			SkillPetAtk(1, petNum)
+		end if
+		
+	end if
+	
+end function
+	
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CheckIfSkillTagHold(tagName)
+	
+	CheckIfSkillTagHold = false
+	
+	if FindImageEX(tagName,Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+		CheckIfSkillTagHold = true
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function MakeSkillWindowPopup()
+	
+	if not CheckIfWinExist("job.sel") then
+	
+		MoveToButtom()
+		
+		if not CheckIfWinExist("job.sel") then
+			
+			//如果右上角技能按鈕沒按
+			if FindImageEX("playerSkillClose.sel",Color(CColorR,CColorG, CColorB),424+3,20+22,488+3,40+22,true,FoundX,FoundY) then
+				OpenPlayerSkill()
+			end if
+			
+		end if
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function GetMonsterInfo()
+	
+	NormalAtk("job.sel")
+	
+	atLeastOneMon = false
+	
+	while atLeastOneMon = false
+		
+		if isFightCow = true then
+			
+			leftSide = 0
+			rightSide = 0
+			
+			MouseMove(arrMonX[2]+Rnd()*10, arrMonY[2]-Rnd()*10)
+			Wait(waitMM)
+			
+			if FindImageEX("noMon.sel",Color(CColorR,CColorG, CColorB),359+3,90+22,443+3,105+22,true,FoundX,FoundY) then
+				leftSide = 0
+				//Print("左邊沒有牛牛")
+			elseif FindImageEX("landCow.sel",Color(CColorR,CColorG, CColorB),359+3,90+22,426+3,105+22,true,FoundX,FoundY) then
+				leftSide = 1
+				//Print("左邊牛牛是地牛")
+				atLeastOneMon = true
+			elseif FindImageEX("fireCow.sel",Color(CColorR,CColorG, CColorB),359+3,90+22,443+3,105+22,true,FoundX,FoundY) then
+				leftSide = 2
+				//Print("左邊牛牛是火牛")
+				atLeastOneMon = true
+			end if
+			
+			MouseMove(arrMonX[4]+Rnd()*10, arrMonY[4]-Rnd()*10)
+			Wait(waitMM)
+			
+			if FindImageEX("noMon.sel",Color(CColorR,CColorG, CColorB),359+3,90+22,443+3,105+22,true,FoundX,FoundY) then
+				rightSide = 0
+				//Print("右邊沒有牛牛")
+			elseif FindImageEX("landCow.sel",Color(CColorR,CColorG, CColorB),359+3,90+22,426+3,105+22,true,FoundX,FoundY) then
+				rightSide = 1
+				//Print("右邊牛牛是地牛")
+				atLeastOneMon = true
+			elseif FindImageEX("fireCow.sel",Color(CColorR,CColorG, CColorB),359+3,90+22,443+3,105+22,true,FoundX,FoundY) then
+				rightSide = 2
+				//Print("右邊牛牛是火牛")
+				atLeastOneMon = true
+			end if
+			
+		else
+			
+			//清空上回合留下的資料
+			for i = 1 to 10
+				arrMonExist[i] = false
+			next
+			
+			for i = 1 to 10
+				
+				MouseMove(arrMonX[i]+Rnd()*10, arrMonY[i]-Rnd()*10)
+				
+				Wait(waitMM)
+				
+				Wait(20)
+				
+				if FindImageEX("noMon.sel",Color(CColorR,CColorG, CColorB),359+3,90+22,443+3,105+22,true,FoundX,FoundY) then
+					arrMonExist[i] = false
+				else
+					arrMonExist[i] = true
+					atLeastOneMon = true
+				end if
+				
+			next
+			
+		end if
+		
+	wend
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function FindFirstAckMon(byref monX, byref monY)
+	
+	monNum = 1
+	
+	isFoundMon = false
+	
+	NormalAtk("job.sel")
+	
+	while isFoundMon = false and monNum < 11
+		
+		MouseMove(arrMonX[monNum]+Rnd()*10, arrMonY[monNum]-Rnd()*10)
+		
+		Wait(waitMM)
+		
+		//鼠標移動至該位置，找不到怪物名字
+		if not FindImageEX("noMon.sel",Color(CColorR,CColorG, CColorB),359+3,90+22,443+3,105+22,true,FoundX,FoundY) then
+			monX = arrMonX[monNum]
+			monY = arrMonY[monNum]
+			isFoundMon = true
+			print("monster found: " & monNum)
+		end if
+		
+		monNum = monNum + 1
+		
+	wend
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function SmartChooseMonster(byref monPointX, byref monPointY)
+	
+	if isFightCow = true then
+		
+		if leftSide = 0 then
+			
+			monPointX = arrMonX[4]
+			monPointY = arrMonY[4]
+			
+		elseif rightSide = 0 then
+			
+			monPointX = arrMonX[2]
+			monPointY = arrMonY[2]
+			
+		else
+			
+			if leftSide = 1 and rightSide = 1 then
+				monPointX = arrMonX[2]
+				monPointY = arrMonY[2]
+			elseif leftSide = 1 and rightSide = 2 then
+				monPointX = arrMonX[4]
+				monPointY = arrMonY[4]
+			elseif leftSide = 2 and rightSide = 1 then
+				monPointX = arrMonX[2]
+				monPointY = arrMonY[2]
+			elseif leftSide = 2 and rightSide = 2 then
+				monPointX = arrMonX[2]
+				monPointY = arrMonY[2]
+			end if
+			
+		end if
+		
+	else
+		
+		isChosen = false
+		
+		while isChosen = false
+			
+			ranNum = Int(Rnd()*9.9)+1
+			
+			if arrMonExist[ranNum] = true then
+				
+				if ranNum >= 0 and ranNum <=5 then
+					
+					monPointX = arrMonX[ranNum]
+					monPointY = arrMonY[ranNum]
+					
+					isChosen = true
+					
+				elseif ranNum >= 6 and ranNum <= 10 then
+					
+					if arrMonExist[ranNum-5] = false then
+						
+						monPointX = arrMonX[ranNum]
+						monPointY = arrMonY[ranNum]
+						
+						isChosen = true
+						
+					end if
+					
+				end if
+				
+			end if
+			
+		wend
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CheckIfPlayerComdFound()
+	
+	CheckIfPlayerComdFound = false
+	
+	if FindImageEX("inOrdering.sel",Color(CColorR,CColorG, CColorB),597+3,14+22,623+3,22+22,true,FoundX,FoundY) then
+		
+		CheckIfPlayerComdFound = true
+		
+	end if
+	
+end function
+
+##################################
+
+function CheckIfPetComdFound()
+	
+	CheckIfPetComdFound = false
+	
+	if FindImageEX("petCommand2.sel",Color(CColorR,CColorG, CColorB),534+3,14+22,547+3,37+22,true,FoundX,FoundY) then
+		
+		CheckIfPetComdFound = true
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CheckIfEscapeButtonFound()
+	
+	CheckIfEscapeButtonFound = false
+	
+	if FindImageEX("escape.sel",Color(CColorR,CColorG, CColorB),564+3,45+22,628+3,65+22,true,FoundX,FoundY) then
+		
+		CheckIfEscapeButtonFound = true
+		
+	end if
+	
+end function
+
+############################################
+
+function MakeEscapeButtonClicked()
+	
+	MoveToButtom()
+	
+	if CheckIfEscapeButtonFound() then
+		
+		MoveAndClick(585+3+Rnd()*15, 50+22+Rnd()*10)
+		
+	else
+		
+		CloseSkill("job.sel")
+		
+		MoveAndClick(585+3+Rnd()*15, 50+22+Rnd()*10)
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function Escape()
+	
+	WaitUntilComdFoundLeader()
+	
+	if not CheckIfInOutdoor() then
+		
+		//人物點擊逃走
+		if CheckIfPlayerComdFound() then
+			//按下逃走的按鈕
+			MakeEscapeButtonClicked()
+		end if
+		
+		Wait(300)
+		
+		//寵物點擊防守
+		if CheckIfPetComdFound() then
+			
+			//如果寵物技能是關閉的
+			if FindImageEX("petSkillClose.sel",Color(CColorR,CColorG, CColorB),550+3,40+22,625+3,75+22,true,FoundX,FoundY) then
+				
+				//打開寵物技能欄
+				OpenPetSkill()
+				
+			end if
+			
+			//預設第2格技能是防守
+			SkillPetAtk(2, 1)
+			
+		end if
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CheckIfPlayerCutLine()
+	
+	CheckIfPlayerCutLine = false
+	
+	if FindImageEX("cutLine.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+		CheckIfPlayerCutLine = true
+	end if
+	
+end function
+
+#########################################
+
+function CheckPlayerBloodZero()
+	
+	CheckPlayerBloodZero = false
+	
+	if ReadNumberEX(DigitImgs,Color(CColorR,CColorG, CColorB),25+3,2+22,46+3,11+22,true,num) then
+		
+		Print("此角色血量: " & num)
+		
+		if num = 0 then
+			
+			CheckPlayerBloodZero = true
+			
+		end if
+		
+	else
+		
+		//Print("Can not find blood number.")
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function WaitUntilComdFoundLeader()
+	
+	//如果還沒有出現戰鬥畫面，同時沒出現寵物指令（怕人物中狀態無法攻擊）
+	//如果人物進入戰鬥後死亡，寵物無法下命令
+	//或者人物和寵物進入戰鬥同時中狀態無法攻擊
+	//foundOrder = FindImageEX("ordering.sel",Color(CColorR,CColorG, CColorB),353+3,4+22,420+3,16+22,true,FoundX,FoundY)
+	foundOrder = FindImageEX("inOrdering.sel",Color(CColorR,CColorG, CColorB),597+3,14+22,623+3,22+22,true,FoundX,FoundY)
+	//foundPetCommand = FindImageEX("petCommand.sel",Color(CColorR,CColorG, CColorB),353+3,4+22,420+3,16+22,true,FoundX,FoundY)
+	foundPetCommand = FindImageEX("petCommand2.sel",Color(CColorR,CColorG, CColorB),534+3,14+22,547+3,37+22,true,FoundX,FoundY)
+	foundNoBattle = FindImageEX("stateNoBattle.sel",Color(CColorR,CColorG, CColorB),459+3,19+22,468+3,24+22,true,FoundX,FoundY)
+	
+	do while foundOrder = false and  foundPetCommand = false and foundNoBattle = false
+		
+		Wait(waitFound)
+		
+		foundOrder = FindImageEX("inOrdering.sel",Color(CColorR,CColorG, CColorB),597+3,14+22,623+3,22+22,true,FoundX,FoundY)
+		foundPetCommand = FindImageEX("petCommand2.sel",Color(CColorR,CColorG, CColorB),534+3,14+22,547+3,37+22,true,FoundX,FoundY)
+		foundNoBattle = FindImageEX("stateNoBattle.sel",Color(CColorR,CColorG, CColorB),459+3,19+22,468+3,24+22,true,FoundX,FoundY)
+		/*
+		//如果發現角色血量 = 0 而無法下達命令
+		if CheckPlayerBloodZero() then
+			exit do
+		end if
+		*/
+		
+	loop
+	
+end function
+
+###################################
+
+function WaitUntilComdFoundTeamateNonLeader()
+	
+	//考慮到網絡的延遲，人物未必會在程式轉換時已經可以下命令
+	//如果還沒有出現戰鬥畫面，同時沒出現寵物指令（兩者都中狀態或死亡）
+	//判斷一定時間後就退出判斷
+	ifPlayerCodFound = FindImageEX("inOrdering.sel",Color(CColorR,CColorG, CColorB),597+3,14+22,623+3,22+22,true,FoundX,FoundY)
+	ifPetCodFound = FindImageEX("petCommand2.sel",Color(CColorR,CColorG, CColorB),534+3,14+22,547+3,37+22,true,FoundX,FoundY)
+	startTime = GetTime()
+	
+	do while ifPlayerCodFound = false and ifPetCodFound = false
+		
+		//如果人物斷線
+		if CheckIfPlayerCutLine() then
+			isCutLine = true
+			exit do
+		end if
+		
+		/*
+		//如果發現角色血量 = 0 而無法下達命令
+		if CheckPlayerBloodZero() then
+			Print("人物死亡，無法下達命令")
+			exit do
+		end if
+		*/
+		
+		if GetTime() - startTime > waitIntoBattle then
+			Print("等待太久，懷疑網絡延遲而要在下回合才可以下達命令")
+			exit do
+		end if
+		
+		Wait(waitFound)
+		
+		ifPlayerCodFound = FindImageEX("inOrdering.sel",Color(CColorR,CColorG, CColorB),597+3,14+22,623+3,22+22,true,FoundX,FoundY)
+		ifPetCodFound = FindImageEX("petCommand2.sel",Color(CColorR,CColorG, CColorB),534+3,14+22,547+3,37+22,true,FoundX,FoundY)
+		
+	loop
+	
+end function
+
+########################################
+
+function Fight()
+	
+	WaitUntilComdFoundLeader()
+	
+	if not CheckIfInOutdoor() then
+		
+		if needToCheckMon = true then
+			GetMonsterInfo()
+		end if
+		
+		dim ifGiveBlood
+		dim ifRevive
+		dim recoverUnitX
+		dim recoverUnitY
+		dim reviveUnitX
+		dim reviveUnitY
+		
+		//如果有會補血的在隊伍中
+		if doctorNumber <> 0 then
+			
+			//刷新人物、寵物的血量
+			RefreshMemberBloodBlock()
+			
+			//找出最少血量的單位
+			FindLeastBloodUnit(leastHpUnit)
+			
+			//判斷是否需要補血
+			CheckIfGiveHP(ifGiveBlood, leastHpUnit, recoverUnitX, recoverUnitY)
+			
+			//判斷是否需要用氣絕回復
+			CheckIfRevive(ifRevive, reviveUnitX, reviveUnitY)
+			
+		end if
+		
+		
+		for i = 1 to ArrayLen(arrWindows,1)
+			
+			if arrWindows[i] <> -1 then
+				
+				ActiveWindow(arrWindows[i])	
+				
+				if i >= 2 then
+					WaitUntilComdFoundTeamateNonLeader()
+				end if
+				
+				dim monX
+				dim monY
+				
+				if needToCheckMon = true then
+					//隨機選擇可攻擊的怪物，防止全部隊員只打死一個正在防守的怪物
+					SmartChooseMonster(monX, monY)
+				end if
+				
+				
+				if CheckIfPlayerComdFound() then
+					
+					decidedTargetX = monX
+					decidedTargetY = monY
+					
+					//如果角色當時有魔力使用技能
+					if arrIfPlayerHasMagic[i] = true then
+						
+						//人物攻擊
+						decidedIfUseSkill = arrPlayerUseSkill[i]
+						decidedSkillNumber = arrPlayerSkill[i]
+						decidedSkillLevel = arrPlayerSkLevel[i]
+						decidedSkillWithTarget = arrSkillWithTarget[i]
+						
+						
+						//如果技能對像是自己隊員（復活、補血）
+						//多為練技用
+						if arrTargetSelf[i] = true then
+							decidedTargetX = arrTeamX[1]
+							decidedTargetY = arrTeamY[1]
+						end if
+						
+						
+						if i = doctorNumber then
+							
+							if doctorWindMagic <> 0 and isFightCow = true then
+								if leftSide = 1 then
+									decidedIfUseSkill = true
+									decidedSkillNumber = doctorWindMagic
+									decidedSkillLevel = doctorWindMagicLevel
+									decidedSkillWithTarget = true
+									decidedTargetX = arrMonX[2]
+									decidedTargetY = arrMonY[2]
+								elseif rightSide = 1 then
+									decidedIfUseSkill = true
+									decidedSkillNumber = doctorWindMagic
+									decidedSkillLevel = doctorWindMagicLevel
+									decidedSkillWithTarget = true
+									decidedTargetX = arrMonX[4]
+									decidedTargetY = arrMonY[4]
+								end if
+							end if
+							
+							if ifGiveBlood = true and doctorSkill <> 0 then
+								decidedIfUseSkill = true
+								decidedSkillNumber = doctorSkill
+								decidedSkillLevel = doctorSkillLevel
+								decidedSkillWithTarget = true
+								decidedTargetX = recoverUnitX
+								decidedTargetY = recoverUnitY
+							end if
+							
+							if ifRevive = true and doctorRevive <> 0 then
+								decidedIfUseSkill = true
+								decidedSkillNumber = doctorRevive
+								decidedSkillLevel = doctorReviveLevel
+								decidedSkillWithTarget = true
+								decidedTargetX = reviveUnitX
+								decidedTargetY = reviveUnitY
+							end if
+							
+						end if
+						
+						
+						//如果隊中有法師，就用單風魔法
+						//多為打牛時用
+						if i = magicUserNumber and isFightCow = true then
+							
+							if leftSide = 1 then
+								decidedIfUseSkill = true
+								decidedSkillNumber = windMagic
+								decidedSkillLevel = windMagicLevel
+								decidedSkillWithTarget = true
+								decidedTargetX = arrMonX[2]
+								decidedTargetY = arrMonY[2]
+							elseif rightSide = 1 then
+								decidedIfUseSkill = true
+								decidedSkillNumber = windMagic
+								decidedSkillLevel = windMagicLevel
+								decidedSkillWithTarget = true
+								decidedTargetX = arrMonX[4]
+								decidedTargetY = arrMonY[4]
+							end if
+							
+						end if
+						
+						
+						if decidedIfUseSkill = true then
+							
+							MakeSkillWindowPopup()
+							SkillAtk(decidedSkillNumber, decidedSkillLevel)
+							
+							//如果不夠魔力使用技能
+							if CheckIfSkillTagHold("playerSkillName.sel") = true then
+								
+								arrIfPlayerHasMagic[i] = false
+								
+								if arrPlayerNoMagicAtk[i] = true then
+									decidedSkillWithTarget = true
+									decidedTargetX = monX
+									decidedTargetY = monY
+									NormalAtk("playerSkillName.sel")
+								else
+									decidedSkillWithTarget = false
+									MakeEscapeButtonClicked()
+								end if
+								
+							end if
+							
+						else
+							NormalAtk("job.sel")
+						end if
+						
+						if decidedSkillWithTarget = true then
+							MoveAndClick(decidedTargetX+Rnd()*10, decidedTargetY-Rnd()*10)
+						end if
+						
+					//如果角色沒有魔力
+					else
+						
+						if arrPlayerNoMagicAtk[i] = true then
+							Print("沒魔時角色設定普攻.")
+							//點擊普攻按鈕
+							NormalAtk("job.sel")
+							MoveAndClick(decidedTargetX, decidedTargetY)
+						else
+							//按下逃走的按鈕
+							Print("沒魔時角色設定逃走.")
+							MakeEscapeButtonClicked()
+						end if
+					end if
+				else
+					print("can not find player command.")
+				end if
+				
+				//...
+				Wait(500)
+				//...
+				
+				//當出現寵物命令欄
+				if CheckIfPetComdFound() then
+					
+					decidedTargetX = monX
+					decidedTargetY = monY
+					
+					petSkillTarget = arrPetSkillHasTarget[i]
+					
+					//當角色沒有魔力時
+					if arrIfPlayerHasMagic[i] = false then
+						
+						//如果角色選擇『沒有魔力時逃跑』，寵物就防守
+						if arrPlayerNoMagicAtk[i] = false then
+							SkillPetAtk(2, i)
+							petSkillTarget = false
+						else
+							//如果不是選擇逃跑而是普攻，寵物普攻
+							PetNormalAtk(i)
+							petSkillTarget = true
+						end if
+						
+					else
+						
+						//如果寵物有魔力時
+						//如果寵物設定為平時普攻
+						if arrPetSkill[i] = 1 then
+							
+							//如果是魔寵而且是打牛
+							if i = magicPetNumber and isFightCow = true then
+								
+								if leftSide = 1 then
+									petSkillTarget = true
+									decidedTargetX = arrMonX[2]
+									decidedTargetY = arrMonY[2]
+									SkillPetAtk(petWindMagic, i)
+								elseif rightSide = 1 then
+									petSkillTarget = true
+									decidedTargetX = arrMonX[4]
+									decidedTargetY = arrMonY[4]
+									SkillPetAtk(petWindMagic, i)
+								end if
+								
+							else
+								PetNormalAtk(i)
+							end if
+							
+							petSkillTarget = true
+							
+						else
+							
+							//如果寵物設定為平時用魔法
+							petSkillTarget = arrPetSkillHasTarget[1]
+							SkillPetAtk(arrPetSkill[i], i)
+							
+						end if
+						
+					end if
+					
+					if petSkillTarget = true then
+						MoveAndClick(decidedTargetX+Rnd()*10, decidedTargetY-Rnd()*10)
+					end if
+					
+				else
+					print("can not find pet command.")
+				end if
+				
+			end if
+			
+		next
+		
+		ActiveWindow(arrWindows[1])
+		
+		Wait(300)
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function ClickFromFirstSkill()
+	
+	if CheckIfWinExist("petSkill.sel") then
+		
+		Print("寵物技能還在，估計沒有魔力或者中了遺忘，現在由頭開始點擊技能")
+		
+		if skNum = 1 or skNum = 2 then
+			
+			//選擇攻擊或防守沒理由會不夠魔的，判斷出應該是中了遺忘魔法
+			//從頭開始依次點擊技能，直到技能欄消失
+			skillNumber = 1
+			
+			do
+				
+				//使用第一招：普攻
+				//為避免寵物是中了遺忘魔法而無法選取攻擊，所以如果還是出現技能欄，就按第二技能：防守…如此類推
+				skillPetAtk(skillNumber, petNum)
+				skillNumber = skillNumber + 1
+				
+			loop while CheckIfWinExist("petSkill.sel") and skillNumber < 11
+			
+		else
+			
+			//如果之前選擇的技能是需要消耗魔力的，判斷出很大可能是不夠魔力
+			//當然也有可能是中了遺忘魔法，但暫時想不到其他方法
+			arrIfPetHasMagic[petNum] = false
+			skillPetAtk(1, petNum)
+			
+		end if
+		
+	end if
+	
+end function
+
+
+//根據所提供的資料向目標在範圍內點擊
+function ClickByRandom(byref pointX, byref pointY, byref baseX, byref baseY, byref rangeX, byref rangeY, byref waitTime)
+	
+	MouseMove(pointX+baseX+Rnd()*rangeX, pointY+baseY+Rnd()*rangeY)
+	wait(waitMM)
+	MouseLeftClick()
+	Wait(waitTime)
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+//根據自身座標向目標點擊右鍵
+function ClickBySelfPoint(refPointE, refPointS)
+	
+	FindCurrentPoint()
+	
+	newEast = refPointE - eastPoint
+	newSouth = refPointS - southPoint
+	
+	newX = 320 + newEast * xBlock + newSouth * xBlock + 3
+	newY = 240 - newEast * yBlock + newSouth * yBlock + 22
+	
+	MouseMove(newX, newY)
+	wait(waitMM)
+	MouseRightClick()
+	Wait(waitCL)
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function Recover(pointE, pointS, ifRecoverPet)
+	//
+	if not FindImageEX("recoverMagic.sel",Color(CColorR,CColorG, CColorB),204+3,189+22,270+3,204+22,true,pointForRandomX,pointForRandomY) then
+		SetMap()
+		FindCurrentPoint()
+		ClickBySelfPoint(pointE, pointS)
+	end if
+	
+	//
+	startTime = GetTime()
+	while not FindImageEX("recoverMagic.sel",Color(CColorR,CColorG, CColorB),204+3,189+22,270+3,204+22,true,pointForRandomX,pointForRandomY)
+		Wait(waitFound)
+		
+		if GetTime() - startTime > beepTime then
+			Beep(800,3000)
+			Pause()
+		end if
+	wend
+	ClickByRandom(pointForRandomX, pointForRandomY, 10, 3, 20, 5, 500)
+	
+	//
+	ifYesToRecover = FindImageEX("yesToRecover.sel",Color(CColorR,CColorG, CColorB),217+3,311+22,283+3,328+22,true,pointForRandomX,pointForRandomY)
+	ifRecovered = FindImageEX("recovered.sel",Color(CColorR,CColorG, CColorB),287+3,311+22,353+3,328+22,true,pointForRandomX,pointForRandomY)
+	while ifYesToRecover = false and ifRecovered = false
+		Wait(waitFound)
+		ifYesToRecover = FindImageEX("yesToRecover.sel",Color(CColorR,CColorG, CColorB),217+3,311+22,283+3,328+22,true,pointForRandomX,pointForRandomY)
+		ifRecovered = FindImageEX("recovered.sel",Color(CColorR,CColorG, CColorB),287+3,311+22,353+3,328+22,true,pointForRandomX,pointForRandomY)
+		print("looping here")
+	wend
+	ClickByRandom(pointForRandomX, pointForRandomY, 10, 3, 20, 5, 500)
+	
+	//
+	if ifYesToRecover = true then
+		while not FindImageEX("recovered.sel",Color(CColorR,CColorG, CColorB),287+3,311+22,353+3,328+22,true,pointForRandomX,pointForRandomY)
+			Wait(waitFound)
+			print(pointForRandomX)
+		wend
+		ClickByRandom(pointForRandomX, pointForRandomY, 10, 3, 20, 5, 500)
+	end if
+	
+	
+	if ifRecoverPet = true then
+		
+		//
+		while not FindImageEX("recoverPet.sel",Color(CColorR,CColorG, CColorB),222+3,269+22,288+3,284+22,true,pointForRandomX,pointForRandomY)
+			Wait(waitFound)
+		wend
+		ClickByRandom(pointForRandomX, pointForRandomY, 10, 3, 20, 5, 500)
+		
+		//
+		while not FindImageEX("yesToRecover.sel",Color(CColorR,CColorG, CColorB),217+3,311+22,283+3,328+22,true,pointForRandomX,pointForRandomY)
+			Wait(waitFound)
+		wend
+		ClickByRandom(pointForRandomX, pointForRandomY, 10, 3, 20, 5, 500)
+		
+		//
+		while not FindImageEX("recovered.sel",Color(CColorR,CColorG, CColorB),287+3,311+22,353+3,328+22,true,pointForRandomX,pointForRandomY)
+			Wait(waitFound)
+		wend
+		ClickByRandom(pointForRandomX, pointForRandomY, 10, 3, 20, 5, 500)
+		
+	end if
+	
+	
+	//
+	moveToCenter()
+	while not FindImageEX("nurseCancel.sel",Color(CColorR,CColorG, CColorB),287+3,311+22,353+3,328+22,true,pointForRandomX,pointForRandomY)
+		Wait(waitFound)
+	wend
+	ClickByRandom(pointForRandomX, pointForRandomY, 10, 3, 20, 5, 500)
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function SellAllMagicStone(pointE, pointS)
+	
+	//沒有出現賣石人畫面就點擊
+	if not FindImageEX("sell.sel",Color(CColorR,CColorG, CColorB),308+3,259+22,319+3,270+23,true,pointForRandomX,pointForRandomY) then
+		SetMap()
+		FindCurrentPoint()
+		ClickBySelfPoint(pointE, pointS)
+	end if
+	
+	//超過一定時間都無法點擊就發出 beep 聲
+	startTime = GetTime()
+	while not FindImageEX("sell.sel",Color(CColorR,CColorG, CColorB),308+3,259+22,319+3,270+22,true,pointForRandomX,pointForRandomY)
+		Wait(waitFound)
+		
+		if GetTime() - startTime > beepTime then
+			Beep(800,3000)
+			Pause()
+		end if
+		
+	wend
+	
+	ClickByRandom(pointForRandomX, pointForRandomY, 10, 3, 10, 5, 500)
+	
+	//
+	while not FindImageEX("cancelSell.sel",Color(CColorR,CColorG, CColorB),477+3,363+22,543+3,380+22,true,pointForRandomX,pointForRandomY)
+		Wait(waitFound)
+	wend
+	
+	//
+	if FindImageEX("canNotSell.sel",Color(CColorR,CColorG, CColorB),381+3,363+22,406+3,382+22,true,pointForRandomX,pointForRandomY) then
+		
+		FindImageEX("cancelSell.sel",Color(CColorR,CColorG, CColorB),477+3,363+22,543+3,380+22,true,pointForRandomX,pointForRandomY)
+		ClickByRandom(pointForRandomX, pointForRandomY, 10, 3, 10, 5, 500)
+		
+	else
+		
+		if FindImageEX("canSell.sel",Color(CColorR,CColorG, CColorB),381+3,363+22,406+3,382+22,true,pointForRandomX,pointForRandomY) then
+			
+			ClickByRandom(pointForRandomX, pointForRandomY, 7, 3, 5, 5, 500)
+			ClickByRandom(304+3, 363+22, 10, 3, 5, 5, 500)
+			
+			while not FindImageEX("yesToSell.sel",Color(CColorR,CColorG, CColorB),100+3,381+22,166+3,398+22,true,pointForRandomX,pointForRandomY)
+				Wait(waitFound)
+			wend
+			
+			ClickByRandom(pointForRandomX, pointForRandomY, 7, 3, 5, 5, 500)
+			
+			while not FindImageEX("sell.sel",Color(CColorR,CColorG, CColorB),308+3,259+22,319+3,270+22,true,pointForRandomX,pointForRandomY)
+				Wait(waitFound)
+			wend
+			
+			ClickByRandom(314+3, 274+22, 7, 3, 5, 5, 500)
+			
+		end if
+		
+	end if
+	
+end function
+
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+//================================================================================
+
+function OutCityScriptWalk(inOrder, arrPtE, arrPtS, isFight)
+	
+	if inOrder = true then
+		
+		for i = 1 to ArrayLen(arrPtE, 1)
+			
+			if CheckIfInOutdoor() then
+				ScriptWalk(arrPtE[i], arrPtS[i])
+			end if
+			
+			FindCurrentPoint()
+			
+			while eastPoint <> arrPtE[i] or southPoint <> arrPtS[i]
+				
+				Wait(500)
+				
+				if CheckIfInOutdoor() then
+					ScriptWalk(arrPtE[i], arrPtS[i])
+				end if
+				
+				if CheckIfInBattle() then
+					
+					if isFight = true then
+						Fight()
+					else
+						Escape()
+					end if
+					
+				end if
+				
+				FindCurrentPoint()
+				
+			wend
+			
+		next
+		
+	else
+		
+		for i = ArrayLen(arrPtE, 1) to 1 step -1
+			
+			if CheckIfInOutdoor() then
+				ScriptWalk(arrPtE[i], arrPtS[i])
+			end if
+			
+			FindCurrentPoint()
+			
+			while eastPoint <> arrPtE[i] or southPoint <> arrPtS[i]
+				
+				Wait(500)
+				
+				if CheckIfInOutdoor() then
+					ScriptWalk(arrPtE[i], arrPtS[i])
+				end if
+				
+				if CheckIfInBattle() then
+					
+					if isFight = true then
+						Fight()
+					else
+						Escape()
+					end if
+					
+				end if
+				
+				FindCurrentPoint()
+				
+			wend
+			
+		next
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function InCityScriptWalk(inOrder, arrPtE, arrPtS)
+	
+	if inOrder = true then
+		
+		for i = 1 to ArrayLen(arrPtE, 1)
+			
+			if CheckIfInOutdoor() then
+				ScriptWalk(arrPtE[i], arrPtS[i])
+			end if
+			
+			FindCurrentPoint()
+			
+			while eastPoint <> arrPtE[i] or southPoint <> arrPtS[i]
+				FindCurrentPoint()
+				Wait(waitNextWalk)
+			wend
+			
+		next
+		
+	else
+		
+		for i = ArrayLen(arrPtE, 1) to 1 step -1
+			
+			if CheckIfInOutdoor() then
+				Print("going to: " & arrPtE[i] & ", " & arrPtS[i])
+				ScriptWalk(arrPtE[i], arrPtS[i])
+			end if
+			
+			FindCurrentPoint()
+			
+			while eastPoint <> arrPtE[i] or southPoint <> arrPtS[i]
+				FindCurrentPoint()
+				Wait(waitNextWalk)
+			wend
+			
+		next
+		
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CanTownAction()
+	
+	OutCityScriptWalk(true, arrPtFight2DoorE, arrPtFight2DoorS, false)
+	
+	WalkIntoNewMapAndWait(645, 271, 31, 14)
+	
+	InCityScriptWalk(true, arrPtCityDoor2CrossE, arrPtCityDoor2CrossS)
+	
+	InCityScriptWalk(true, arrPtCross2HospitalDoorE, arrPtCross2HospitalDoorS)
+	
+	WalkIntoNewMapAndWait(38, 44, 15, 25)
+	
+	InCityScriptWalk(true, arrPtHospitalDoor2NurseE, arrPtHospitalDoor2NurseS)
+	
+	InCityScriptWalk(true, arrPtAroundNurseE, arrPtAroundNurseS)
+	
+	//*******去資深護士處補魔
+	for j = 1 to ArrayLen(arrWindows,1)
+		
+		if arrWindows[j] <> -1 then
+			ActiveWindow(arrWindows[j])	
+			Wait(500)
+			Recover(16, 7, true)	
+		end if
+		
+	next
+	
+	RecordAllUnitHasMagic()
+	
+	ActiveWindow(arrWindows[1])
+	
+	Wait(1000)
+	
+	//*************************************
+	
+	InCityScriptWalk(false, arrPtHospitalDoor2NurseE, arrPtHospitalDoor2NurseS)
+	
+	WalkIntoNewMapAndWait(15, 25, 38, 44)
+	
+	InCityScriptWalk(false, arrPtCross2HospitalDoorE, arrPtCross2HospitalDoorS)
+	
+	if CanTownIfSellStone = true then
+		
+		InCityScriptWalk(true, arrPtCross2ShopDoorE, arrPtCross2ShopDoorS)
+		
+		WalkIntoNewMapAndWait(61, 74, 2, 9)
+		
+		InCityScriptWalk(true, arrPtShopDoor2BuyerE, arrPtShopDoor2BuyerS)
+		
+		InCityScriptWalk(true, arrPtAroudBuyerE, arrPtAroudBuyerS)
+		
+		//******去商人處賣石
+		for k = 1 to ArrayLen(arrWindows,1)
+			
+			if arrWindows[k] <> -1 then
+				ActiveWindow(arrWindows[k])	
+				Wait(1000)
+				SellAllMagicStone(10, 11)
+			end if
+			
+		next
+		
+		ActiveWindow(arrWindows[1])
+		
+		Wait(1000)
+		
+		//***************************
+		
+		InCityScriptWalk(false, arrPtShopDoor2BuyerE, arrPtShopDoor2BuyerS)
+		
+		WalkIntoNewMapAndWait(2, 9, 61, 74)
+		
+		InCityScriptWalk(false, arrPtCross2ShopDoorE, arrPtCross2ShopDoorS)
+		
+	end if
+	
+	InCityScriptWalk(false, arrPtCityDoor2CrossE, arrPtCityDoor2CrossS)
+	
+	WalkIntoNewMapAndWait(31, 14, 645, 271)
+	
+	OutCityScriptWalk(false, arrPtFight2DoorE, arrPtFight2DoorS, true)
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+//記錄所有隊伍成員有魔力
+function RecordAllUnitHasMagic()
+	
+	for i = 1 to 5
+		arrIfPetHasMagic[i] = true
+		arrIfPlayerHasMagic[i] = true
+	next
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function WalkIntoNewMapAndWait(refPointE, refPointS, outMapE, outMapS)
+	
+	if CheckIfInOutdoor() then
+		ScriptWalk(refPointE, refPointS)
+	end if
+	
+	FindCurrentPoint()
+	
+	while eastPoint <> outMapE and southPoint <> outMapS
+		Print("the map is changing, pls wait.")
+		Wait(waitFound)
+		FindCurrentPoint()
+	wend
+	
+	Wait(500)
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function SuitableEast(byref e)
+	
+	rangeHighEast = highEast - eastPoint
+	rangeLowEast = eastPoint - lowEast
+	stepNumber = 3
+	
+	//如果不知道什麼原因，隨機亂走時所走的步數大於 3 步，就通知並暫停腳本
+	if rangeHighEast > movePoint*stepNumber or rangeLowEast > movePoint*stepNumber then
+		Print("currentEast: " & eastPoint)
+		Print("highEast: " & highEast & ", lowEast: " & lowEast)
+		Print("Moving value is out of windows, pls check it out.")
+		Pause()
+	end if
+	
+	e = Rnd()*rangeHighEast - Rnd()*rangeLowEast
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function SuitableSouth(byref s)
+	rangeHighSouth = highSouth - southPoint
+	rangeLowSouth = southPoint - lowSouth
+	stepNumber = 3
+	
+	if rangeHighSouth > movePoint*stepNumber or rangeLowSouth > movePoint*stepNumber then
+		Print("currentSouth: " & southPoint)
+		Print("highSouth: " & highSouth & ", lowSouth: " & lowSouth)
+		Print("Moving value is out of windows, pls check it out.")
+		Pause()
+	end if
+	
+	s = Rnd()*rangeHighSouth - Rnd()*rangeLowSouth
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+//將要走的地圖東南座標轉換成窗口 x, y 座標的點擊
+function MoveByES(eastValue, southValue)
+	
+	newX = 320 + eastValue * xBlock + southValue * xBlock + 3
+	newY = 240 - eastValue * yBlock + southValue * yBlock + 22
+	
+	if Abs(eastValue) > Abs(southValue) then
+		newBlock = Abs(eastValue)
+	else
+		newBlock = Abs(southValue)
+	end if
+	
+	if newBlock >= 1 then
+		MouseMove(newX + plusMinRnd(7), newY + plusMinRnd(5))
+		wait(waitMM)
+		MouseLeftClick()
+		Wait(waitPM * newBlock + Rnd()*30)
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function PlusMinRnd(num)
+	
+	PlusMinRnd = Rnd()*num*2 - num
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function RandomWalk()
+	
+	//重新讀取座標
+	FindCurrentPoint()
+	
+	//在可移動格數裡創建新的東、南座標
+	SuitableEast(nextEast)
+	SuitableSouth(nextSouth)
+	
+	//根據新建的東、南座標移動
+	MoveByES(nextEast, nextSouth)
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function ScriptWalk(refEastPoint, refSouthPoint)
+	
+	FindCurrentPoint()
+	
+	nextEast = refEastPoint - eastPoint
+	nextSouth = refSouthPoint - southPoint
+	
+	//根據新建的東、南座標移動
+	MoveByES(nextEast, nextSouth)
+	
+end function
+
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+#####################################################################################################
+
+function CheckIfInOutdoor()
+	
+	if FindImageEX("stateNoBattle.sel",Color(CColorR,CColorG, CColorB),459+3,19+22,468+3,24+22,true,FoundX,FoundY) then
+		CheckIfInOutdoor = true
+	else
+		CheckIfInOutdoor = false
+	end if
+	
+end function
+
+##########################################
+
+function CheckIfInBattle()
+	
+	if FindImageEX("intoBattle.sel",Color(CColorR,CColorG, CColorB),1+3,1+22,11+3,11+22,true,FoundX,FoundY) then
+		CheckIfInBattle = true
+	else
+		CheckIfInBattle = false
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function StopWalkWhenAnotherAround()
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function ChooseCorrectPlayerToFeed(playerNum)
+	
+	while not FindImageEX("selectPlayer.sel",Color(CColorR,CColorG, CColorB),230+3,150+22,304+3,163+22,true,FoundX,FoundY)
+		//Print("can not find 'selectPlayer.sel'")
+		Wait(waitFound)
+	wend
+	
+	for i = 1 to teamNum
+		
+		if arrIfPlayerHasMagic[i] = false then
+			
+			if playerNum = i then
+				
+				//如果給料理者正是沒魔力人，請選擇第一人
+				MoveAndClick(nameListX[1], nameListY[1])
+				
+			elseif playerNum > i then
+				
+				//如果給料理者在沒魔力人之前，選擇+1位置的人物
+				MoveAndClick(nameListX[i+1], nameListY[i+1])
+				
+			elseif playerNum < i then
+				
+				//如果給料理者在沒魔力人之後，選擇正常位置
+				MoveAndClick(nameListX[i], nameListY[i])
+				Wait(200)
+				
+			end if
+			
+			//wait until ...
+			
+			while not FindImageEX("selectUnit.sel",Color(CColorR,CColorG, CColorB),474+3,150+22,503+3,163+22,true,FoundX,FoundY)
+				//Print("can not find 'selectUnit.sel'")
+				Wait(waitFound)
+			wend
+			
+			//選擇第1單位料理（因為寵物不用魔都普攻）
+			MoveAndClick(190 + 5 + Rnd()*5 + 3, 176 + 2 + Rnd()*3 + 22)
+			
+			ChooseCorrectPlayerToFeed = i
+			
+			exit for
+			
+		end if
+		
+	next
+	
+end function
+
+##############################################
+
+function CheckIfFoodPicFound()
+	
+	CheckIfFoodPicFound = false
+	
+	for i = 1 to ArrayLen(arrFood,1)
+		
+		if FindImageEX(arrFood[i],Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+			
+			CheckIfFoodPicFound = true
+			
+			exit for
+			
+		end if
+		
+	next
+	
+end function
+
+//////////////////////////////////
+
+function CheckIfFoodFound(byref ptX, byref ptY)
+	
+	CheckIfFoodFound = false
+	
+	for i = 1 to ArrayLen(arrFood,1)
+		
+		if FindImageEX(arrFood[i],Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+			
+			CheckIfFoodFound = true
+			
+			ptX = FoundX
+			ptY = FoundY
+			
+			exit for
+			
+		end if
+		
+	next
+	
+end function
+
+########################################
+
+function FindFirstFoodAndDbClick(playerNum, byref isFound, byref isCheckAllBlock)
+	
+	isFound = false
+	isCheckAllBlock = false
+	
+	dim count
+	
+	for count = 1 to 20
+		
+		MouseMove(arrBlockX[count], arrBlockY[count])
+		Wait(50)
+		
+		if CheckIfFoodPicFound(arrFood) then
+			isFound = true
+			MouseLeftDBClick()
+			exit for
+		end if
+		
+	next
+	
+	//如果整個物品欄都沒有料理
+	if count = 21 then
+		
+		//判斷已經 check 完所有物品
+		isCheckAllBlock = true
+		
+		//該人物被判斷沒有料理
+		arrIfPlayerHasFood[playerNum] = false
+		
+		CloseItemWin()
+		
+	end if
+	
+end function
+
+#############################################
+
+function OpenItemWin()
+	
+	MoveToButtom()
+	
+	Wait(500)
+	
+	while not FindImageEX("itemButton.sel",Color(CColorR,CColorG, CColorB),181+3,463+22,205+3,475+22,true,FoundX,FoundY)
+		Wait(waitCL)
+	wend
+	
+	Wait(300)
+	
+	MoveAndClick(FoundX + 5 + Rnd()*5, FoundY + 3 + Rnd()*4)
+	
+end function
+
+######################################
+
+function RenewItemBlock(ptX, ptY)
+	
+	tempBlockX = ptX + itemBlockRangeX
+	tempBlockY = ptY + itemBlockRangeY
+	
+	for i = 1 to 5
+		arrBlockX[i] = tempBlockX + blockRangeX * (i-1)
+		arrBlockX[i+5] = tempBlockX + blockRangeX * (i-1)
+		arrBlockX[i+10] = tempBlockX + blockRangeX * (i-1)
+		arrBlockX[i+15] = tempBlockX + blockRangeX * (i-1)
+		arrBlockY[i] = tempBlockY + blockRangeY * 0
+		arrBlockY[i+5] = tempBlockY + blockRangeY * 1
+		arrBlockY[i+10] = tempBlockY + blockRangeY * 2
+		arrBlockY[i+15] = tempBlockY + blockRangeY * 3
+	next
+	
+end function
+
+######################
+
+function DragItemWin()
+	
+	dim itemWinTempX
+	dim itemWinTempY
+	
+	while not FindImageEX("itemWin.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,itemWinTempX,itemWinTempY)
+		Wait(waitFound)
+	wend
+	
+	Drag(itemWinTempX, itemWinTempY, itemWinX, itemWinY)
+	Wait(100)
+	
+	RenewItemBlock(itemWinX, itemWinY)
+	
+end function
+
+######################################
+
+function CloseItemWin()
+	
+	/*
+	//=============================
+	//關閉物品欄
+	while not FindImageEX("itemWin.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+		Wait(waitFound)
+	wend
+	MoveAndClick(FoundX+128, FoundY)
+	//=============================
+	*/
+	
+	if FindImageEX("itemWin.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+		MoveAndClick(FoundX+128, FoundY)
+	end if
+	
+end function
+
+/////////////////////////////////
+
+function EatFood()
+	
+	Wait(500)
+	
+	for i = 1 to ArrayLen(arrWindows,1)
+		
+		//如果此角色有料理（預設有）
+		//如果有人沒有魔力，雖然說當補了魔後可以直接跳出迴圈，但也有可能同一場戰鬥兩個人以上沒有魔力
+		if arrWindows[i] <> -1 and arrIfPlayerHasFood[i] = true and CheckIfAllHasMagic() = false then
+			
+			Wait(200)
+			
+			ActiveWindow(arrWindows[i])
+			
+			while CheckIfAllHasMagic() = false and arrIfPlayerHasFood[i] = true
+				
+				ClearRewardWin()
+				
+				OpenItemWin()
+				
+				while not FindImageEX("itemWin.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,itemWinTempX,itemWinTempY)
+					Wait(waitFound)
+				wend
+				
+				MoveToButtom()
+				
+				isFed = false
+				
+				if CheckIfFoodFound(foodX, foodY) then
+					
+					MouseLeftDBClick(foodX+10+Rnd()*10, foodY+10+Rnd()*10)
+					
+					whoBeenFed = ChooseCorrectPlayerToFeed(i)
+					
+					arrIfPlayerHasMagic[whoBeenFed] = true
+					
+					isFed = true
+					
+				end if
+				
+				
+				/*
+				for j = 1 to ArrayLen(arrFood,1)
+					
+					if FindImageEX(arrFood[j],Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+						MouseLeftDBClick(FoundX+10+Rnd()*10, FoundY+10+Rnd()*10)
+						whoBeenFed = ChooseCorrectPlayerToFeed(i)
+						Print("誰被餵了料理： " & whoBeenFed)
+						arrIfPlayerHasMagic[whoBeenFed] = true
+						isFed = true
+						exit for
+					end if
+					
+				next
+				*/
+				
+				if isFed = false then
+					arrIfPlayerHasFood[i] = false
+				end if
+				
+			wend
+			
+			CloseItemWin()
+			
+			/*
+			DragItemWin()
+			
+			isCheckAllBlock = false
+			
+			do
+				//逐格查看物品欄是否有料理
+				FindFirstFoodAndDbClick(i, isFound, isCheckAllBlock)
+				
+				//如果有料理，此時已經是選擇給誰料理的介面
+				if isFound = true then
+					ChooseCorrectPlayerToFeed(i)
+					exit do
+				end if
+				
+			loop while CheckIfAllHasMagic() = false and isCheckAllBlock = false
+			*/
+			
+		end if
+		
+	next
+	
+	ActiveWindow(arrWindows[1])
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function StopWhenBloodOne()
+	
+	if ReadNumberEX(DigitImgs,Color(CColorR,CColorG, CColorB),22+3,19+22,46+3,28+22,true,num) then
+		
+		//Print("人物血量: " & num)
+		
+		if num = 1 then
+			Print("人物上一場戰鬥死亡，劇本暫停")
+			Pause()
+		end if
+		
+	end if
+	
+end function
+
+///////////////////////////////
+
+function StopWhenCutLine()
+	
+	if isCutLine = true then
+		Print("有人斷線，劇本暫停")
+		Pause()
+	end if
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function main
+# 在此添加由嚮導創建或錄製的代碼
+
+SetInputMode(0)
+
+Randomize() 
+
+LoadPic()
+
+SetPoint()
+
+/*
+GetActiveWindowID(ID)
+Print(ID)
+exit function
+*/
+
+
+# 初始化角色設定
+IniSet()
+
+# 使地圖可以讀取座標
+SetMap()
+
+# 設定座標
+IniPoint()
+
+# 計算程式開始時有多少隊員
+CheckTeamMember()
+
+if scriptMode = 0 then
+	
+	GetActiveWindowID(ID)
+	Print(ID)
+	GetActiveWindowSize(width, height)
+	Print(width & ", " & height)
+	//MoveWindow(ID, 3, 22)
+	
+elseif scriptMode = 1 then
+	
+elseif scriptMode = 2 then
+	
+	keepUpSkill = true
+	while keepUpSkill = true
+		
+		if CheckIfFullHP() then
+			ReduceSelfHP()
+		end if
+		
+		if CheckIfEnoughMP() = false then
+			Recover(pointE, pointS, false)
+		end if
+		
+		ifUsedSkill = false
+		
+		if ifUsedSkill = false then
+			OpenSkillWin()
+			SkillAtk(nurseSkill, nurseSkillLevel)
+			RecoverSelfHP()
+		end if
+		
+		while CheckIfFullHP() = false or CheckIfEnoughMP() = true
+			ClickRetry()
+			RecoverSelfHP()
+		wend
+		
+	wend
+	
+elseif scriptMode = 3 then
+	
+	keepUpLevel = true
+	while keepUpLevel = true
+		
+		keepFight = true
+		while keepFight = true
+			
+			if CheckIfInOutdoor() then
+				
+				//停止遇敵當發現血量 = 1, 即上一場打怪死了的話，停止 script
+				StopWhenBloodOne()
+				
+				//如果有角色斷線，停止 script
+				StopWhenCutLine()
+				
+				//停止行走當有別人在附近時
+				//StopWalkWhenAnotherAround()
+				
+				//檢查是否有隊員沒有魔力，
+				//是的話就停止遇敵
+				//否的話就隨機走動遇敵
+				if CheckIfAllHasMagic() = false then
+					keepFight = false
+				else
+					RandomWalk()
+				end if
+			end if
+			
+			if CheckIfInBattle() then
+				fight()
+			end if
+			
+		wend
+		
+		//其中一位隊員沒有魔力時的處理
+		//全體登出，不再戰鬥
+		if whatToDoNoMagic = 0 then
+			AllLogout()
+			keepUpLevel = false
+			
+		//聲音提示，不再戰鬥	
+		elseif whatToDoNoMagic = 1 then
+			Beep(800, 1000)
+			Pause()
+			//keepUpLevel = false
+			
+		//坎村模式的回城補魔
+		//繼續戰鬥
+		elseif whatToDoNoMagic = 2 then
+			CanTownAction()
+			keepUpLevel = true
+			keepFight = true
+			
+		//進食料理
+		//繼續戰鬥（如果有料理可食的話）
+		elseif whatToDoNoMagic = 3 then
+			
+			EatFood()
+			
+			//如果成功進食料理就繼續戰鬥，否則退出戰鬥
+			if CheckIfAllHasMagic() then
+				keepFight = true
+				Print("進食了料理，繼續戰鬥")
+			else
+				keepFight = false
+				Print("料理已經食完")
+				Pause()
+			end if
+			
+		end if
+		
+	wend
+	
+end if
+
+end function
+
+
+
+
+# 在此添加子函數
+######################################################
+
+function CheckIfAllHasMagic()
+	
+	CheckIfAllHasMagic = true
+	
+	for i = 1 to teamNum
+		
+		if arrIfPlayerHasMagic[i] = false then
+			CheckIfAllHasMagic = false
+		end if
+		
+	next
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function ClickSystemButton()
+	
+	MouseMove(590+3, 470+22)
+	Wait(waitMM)
+	
+	while not FindImageEX("system.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+		//print("finding system.sel")
+		wait(waitFound)
+	wend
+	
+	FindImageEX("system.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+	
+	MouseLeftClick(FoundX+10, FoundY+5)
+	
+end function
+
+#################################
+
+function ClickLogoutButton()
+	
+	MouseMove(590+3, 470+22)
+	Wait(waitMM)
+	
+	while not FindImageEX("logoutButton.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+		//print("finding logoutButton.sel")
+		wait(waitFound)
+	wend
+	
+	FindImageEX("logoutButton.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+	
+	MouseLeftClick(FoundX+25, FoundY+8)
+	
+end function
+
+
+##################################
+
+
+function ClickLogoutToCityButton()
+	
+	MouseMove(590+3, 470+22)
+	Wait(waitMM)
+	
+	while not FindImageEX("backToCity.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+		//print("finding backToCity.sel")
+		Wait(waitFound)
+	wend
+	
+	FindImageEX("backToCity.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+	
+	MouseLeftClick(FoundX+20, FoundY+5)
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function RefreshMemberBloodBlock()
+	
+	for i = 1 to teamNum*2	
+		
+		count = 31
+		blackCount = 0
+		isExit = false
+		
+		while isExit = false and count >= 0
+			
+			GetPixel(arrTeamBloodX[i]+count, arrTeamBloodY[i], true, Color1)
+			
+			if CheckColor(arrTeamBloodX[i]+count, arrTeamBloodY[i], Color(0,0,8), 10) then
+				blackCount = blackCount + 1
+			elseif CheckColor(arrTeamBloodX[i]+count, arrTeamBloodY[i], Color(248,140,136), 10) then
+				isExit = true
+			end if
+			
+			count = count - 1
+			
+		wend
+		
+		//print(blackCount)
+		arrTeamUnitBloodBlock[i] = totalBloodBlock - blackCount
+		//print("team " & i & " 血量: " & count)
+	next
+	
+end function
+
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function FindLeastBloodUnit(byref leastBloodUnit)
+	
+	leastBloodUnit = 1
+	leastBloodBlock = arrTeamUnitBloodBlock[1]
+	
+	for i=2 to teamNum*2
+		
+		if arrTeamUnitBloodBlock[i] < leastBloodBlock then
+			
+			leastBloodUnit = i
+			leastBloodBlock = arrTeamUnitBloodBlock[i]
+			
+		end if
+		
+	next
+	
+	//print("leastBloodUnit: " & leastBloodUnit & " : " & arrTeamUnitBloodBlock[leastBloodUnit])
+end function
+
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CheckIfGiveHP(byref ifGiveBlood, leastBloodUnit, byref noBloodX, byref noBloodY)
+	
+	ifGiveBlood = false
+	
+	if arrTeamUnitBloodBlock[leastBloodUnit] <= percentToGiveHP then
+		
+		ifGiveBlood = true
+		
+		noBloodX = arrTeamX[leastBloodUnit]
+		noBloodY = arrTeamY[leastBloodUnit]
+		
+	end if
+	
+	//print("ifGiveBlood: " & ifGiveBlood)
+end function
+
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function CheckIfUnitAlive(unitNum)
+	
+	CheckIfUnitAlive = false
+	
+	if CheckColor(arrTeamBloodX[unitNum]-1, arrTeamBloodY[unitNum], Color(104,84,32), 10) then
+		CheckIfUnitAlive = true
+	end if
+	
+end function
+
+#############################################
+
+function CheckIfRevive(byref ifRevive, byref needReviveX, byref needReviveY)
+	
+	ifRevive = false
+	
+	//如果有其中一單位找不到血量 bar 條，就需要用復活技能
+	for i = 1 to teamNum*2
+		
+		if not CheckIfUnitAlive(i) then
+			
+			ifRevive = true
+			needReviveX = arrTeamX[i]
+			needReviveY = arrTeamY[i]
+			
+		end if
+		
+	next
+	
+end function
+
+########################################################################################################
+########################################################################################################
+########################################################################################################
+
+function MoveToButtom()
+	
+	MouseMove(550 + Rnd()*20 + 3, 450 + Rnd()*20 + 22)
+	Wait(waitMM)
+	
+end function
+
+#######################
+
+function MoveToCenter()
+	
+	MouseMove(320 + Rnd()*20 + 3, 240 + Rnd()*20 + 22)
+	Wait(waitMM)
+	
+end function
+
+################################################
+
+function LoadPic()
+	
+	dim global DigitImgs[10]
+	dim global DigitImgs2[10]
+	
+	LoadImage("d1.sel",DigitImgs[1])
+	LoadImage("d2.sel",DigitImgs[2])
+	LoadImage("d3.sel",DigitImgs[3])
+	LoadImage("d4.sel",DigitImgs[4])
+	LoadImage("d5.sel",DigitImgs[5])
+	LoadImage("d6.sel",DigitImgs[6])
+	LoadImage("d7.sel",DigitImgs[7])
+	LoadImage("d8.sel",DigitImgs[8])
+	LoadImage("d9.sel",DigitImgs[9])
+	LoadImage("d0.sel",DigitImgs[10])
+	
+	LoadImage("m1.sel",DigitImgs2[1])
+	LoadImage("m2.sel",DigitImgs2[2])
+	LoadImage("m3.sel",DigitImgs2[3])
+	LoadImage("m4.sel",DigitImgs2[4])
+	LoadImage("m5.sel",DigitImgs2[5])
+	LoadImage("m6.sel",DigitImgs2[6])
+	LoadImage("m7.sel",DigitImgs2[7])
+	LoadImage("m8.sel",DigitImgs2[8])
+	LoadImage("m9.sel",DigitImgs2[9])
+	LoadImage("m0.sel",DigitImgs2[10])
+	
+end function
+
+##################################################
+
+function IniPoint()
+	
+	//判斷自身座標
+	FindCurrentPoint()
+	
+	startPointEast = eastPoint
+	startPointSouth = southPoint
+	
+	//計算地圖的偏移量
+	lowEast = startPointEast - movePoint
+	lowSouth = startPointSouth - movePoint
+	highEast = startPointEast + movePoint
+	highSouth = startPointSouth + movePoint
+	
+	print("Startpoint: " & startPointEast & ", " & startPointSouth)
+	print("Dest point: " & lowEast & ", " & lowSouth & ", " & highEast & ", " & highSouth)
+	
+end function
+
+################################################
+
+function CheckTeamMember()
+	
+	teamNum = 0
+	
+	for i=1 to 5
+		
+		if arrWindows[i] <> -1 then
+			
+			teamNum = teamNum + 1
+			
+		end if
+		
+	next
+	
+	//print("teamNum: " & teamNum)
+end function
+
+#################################################
+
+function AllLogout()
+	
+	for i = 1 to ArrayLen(arrWindows,1)
+		
+		if arrWindows[i] <> -1 then
+			
+			ActiveWindow(arrWindows[i])
+			
+			ClickSystemButton()
+			ClickLogoutButton()
+			ClickLogoutToCityButton()
+			
+		end if
+		
+	next
+	
+end function
+
+######################################################
+
+function OpenPetSkill()
+	
+	MoveAndClick(565+5+Rnd()*10+3, 50+5+Rnd()*5+22)
+	
+end function
+
+#######################################################
+
+function FindCorrectSkillPoint(winName, byref ptX, byref ptY)
+	
+	ptX = 0
+	ptY = 0
+	
+	FindImageEX(winName,Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,ptX,ptY)
+	
+	while ptX = 0 or ptY = 0
+		FindImageEX(winName,Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,ptX,ptY)
+		Print("找不到技能欄，再找一次")
+		Wait(waitFound)
+	wend
+	
+	
+end function
+
+######################################################
+
+function OpenPlayerSkill()
+	
+	MoveAndClick(424+5+Rnd()*40+3, 20+5+Rnd()*5+22)
+	
+end function
+
+######################################################
+
+function SetPoint()
+	//準確設定人物、寵物的血量第一點
+	dim global arrTeamBloodX[10]
+	dim global arrTeamBloodY[10]
+	arrTeamBloodX[1] = 458 + 3
+	arrTeamBloodY[1] = 361 + 22
+	arrTeamBloodX[2] = 396 + 3
+	arrTeamBloodY[2] = 314 + 22
+	arrTeamBloodX[3] = 523 + 3
+	arrTeamBloodY[3] = 326 + 22
+	arrTeamBloodX[4] = 459 + 3
+	arrTeamBloodY[4] = 277 + 22
+	arrTeamBloodX[5] = 393 + 3
+	arrTeamBloodY[5] = 396 + 22
+	arrTeamBloodX[6] = 332 + 3
+	arrTeamBloodY[6] = 350 + 22
+	arrTeamBloodX[7] = 588 + 3
+	arrTeamBloodY[7] = 291 + 22
+	arrTeamBloodX[8] = 523 + 3
+	arrTeamBloodY[8] = 241 + 22
+	arrTeamBloodX[9] = 328 + 3
+	arrTeamBloodY[9] = 431 + 22
+	arrTeamBloodX[10] = 268 + 3
+	arrTeamBloodY[10] = 386 + 22
+	
+	//根據血量第一格所設定的人物大概座標，注意不是由左至右
+	dim global arrTeamX[10]
+	dim global arrTeamY[10]
+	dim global bloodBlockToUnitX = 30
+	dim global bloodBlockToUnitY = -15
+	for i=1 to 10
+		arrTeamX[i] = arrTeamBloodX[i] + bloodBlockToUnitX
+		arrTeamY[i] = arrTeamBloodY[i] + bloodBlockToUnitY
+	next
+	
+	//設定十隻怪物的座標
+	dim global arrMonX[10]
+	dim global arrMonY[10]
+	for i=1 to 5
+		arrMonX[i] = 90 + 64 * (i-1) + 3
+		arrMonX[i+5] = 35 + 64 * (i-1) + 3
+		
+		arrMonY[i] = 290 - 36 * (i-1) + 22
+		arrMonY[i+5] = 240 - 36 * (i-1) + 22
+	next
+	
+	///////////////////////////////////////
+	///////////////////////////////////////
+	///////////////////////////////////////
+	dim global arrPtFight2DoorE[4]
+	dim global arrPtFight2DoorS[4]
+	arrPtFight2DoorE[1] = 645
+	arrPtFight2DoorS[1] = 265
+	arrPtFight2DoorE[2] = 645
+	arrPtFight2DoorS[2] = 267
+	arrPtFight2DoorE[3] = 645
+	arrPtFight2DoorS[3] = 269
+	arrPtFight2DoorE[4] = 645
+	arrPtFight2DoorS[4] = 270
+	
+	dim global arrPtCityDoor2CrossE[8]
+	dim global arrPtCityDoor2CrossS[8]
+	arrPtCityDoor2CrossE[1] = 31
+	arrPtCityDoor2CrossS[1] = 18
+	arrPtCityDoor2CrossE[2] = 31
+	arrPtCityDoor2CrossS[2] = 24
+	arrPtCityDoor2CrossE[3] = 31
+	arrPtCityDoor2CrossS[3] = 30
+	arrPtCityDoor2CrossE[4] = 31
+	arrPtCityDoor2CrossS[4] = 36
+	arrPtCityDoor2CrossE[5] = 31
+	arrPtCityDoor2CrossS[5] = 42
+	arrPtCityDoor2CrossE[6] = 31
+	arrPtCityDoor2CrossS[6] = 48
+	arrPtCityDoor2CrossE[7] = 35
+	arrPtCityDoor2CrossS[7] = 48
+	arrPtCityDoor2CrossE[8] = 38
+	arrPtCityDoor2CrossS[8] = 48
+	
+	dim global arrPtCross2HospitalDoorE[2]
+	dim global arrPtCross2HospitalDoorS[2]
+	arrPtCross2HospitalDoorE[1] = 38
+	arrPtCross2HospitalDoorS[1] = 48
+	arrPtCross2HospitalDoorE[2] = 38
+	arrPtCross2HospitalDoorS[2] = 45
+	
+	dim global arrPtHospitalDoor2NurseE[6]
+	dim global arrPtHospitalDoor2NurseS[6]
+	arrPtHospitalDoor2NurseE[1] = 15
+	arrPtHospitalDoor2NurseS[1] = 24
+	arrPtHospitalDoor2NurseE[2] = 15
+	arrPtHospitalDoor2NurseS[2] = 20
+	arrPtHospitalDoor2NurseE[3] = 16
+	arrPtHospitalDoor2NurseS[3] = 17
+	arrPtHospitalDoor2NurseE[4] = 18
+	arrPtHospitalDoor2NurseS[4] = 14
+	arrPtHospitalDoor2NurseE[5] = 18
+	arrPtHospitalDoor2NurseS[5] = 8
+	arrPtHospitalDoor2NurseE[6] = 16
+	arrPtHospitalDoor2NurseS[6] = 8
+	
+	dim global arrPtAroundNurseE[4]
+	dim global arrPtAroundNurseS[4]
+	arrPtAroundNurseE[1] = 15
+	arrPtAroundNurseS[1] = 8
+	arrPtAroundNurseE[2] = 16
+	arrPtAroundNurseS[2] = 8
+	arrPtAroundNurseE[3] = 15
+	arrPtAroundNurseS[3] = 8
+	arrPtAroundNurseE[4] = 16
+	arrPtAroundNurseS[4] = 8
+	
+	dim global arrPtCross2ShopDoorE[13]
+	dim global arrPtCross2ShopDoorS[13]
+	arrPtCross2ShopDoorE[1] = 38
+	arrPtCross2ShopDoorS[1] = 48
+	arrPtCross2ShopDoorE[2] = 42
+	arrPtCross2ShopDoorS[2] = 48
+	arrPtCross2ShopDoorE[3] = 46
+	arrPtCross2ShopDoorS[3] = 48
+	arrPtCross2ShopDoorE[4] = 50
+	arrPtCross2ShopDoorS[4] = 48
+	arrPtCross2ShopDoorE[5] = 54
+	arrPtCross2ShopDoorS[5] = 48
+	arrPtCross2ShopDoorE[6] = 58
+	arrPtCross2ShopDoorS[6] = 48
+	arrPtCross2ShopDoorE[7] = 58
+	arrPtCross2ShopDoorS[7] = 52
+	arrPtCross2ShopDoorE[8] = 58
+	arrPtCross2ShopDoorS[8] = 56
+	arrPtCross2ShopDoorE[9] = 58
+	arrPtCross2ShopDoorS[9] = 60
+	arrPtCross2ShopDoorE[10] = 58
+	arrPtCross2ShopDoorS[10] = 64
+	arrPtCross2ShopDoorE[11] = 58
+	arrPtCross2ShopDoorS[11] = 68
+	arrPtCross2ShopDoorE[12] = 58
+	arrPtCross2ShopDoorS[12] = 72
+	arrPtCross2ShopDoorE[13] = 60
+	arrPtCross2ShopDoorS[13] = 74
+	
+	dim global arrPtShopDoor2BuyerE[2]
+	dim global arrPtShopDoor2BuyerS[2]
+	arrPtShopDoor2BuyerE[1] = 6
+	arrPtShopDoor2BuyerS[1] = 9
+	arrPtShopDoor2BuyerE[2] = 10
+	arrPtShopDoor2BuyerS[2] = 10
+	
+	dim global arrPtAroudBuyerE[4]
+	dim global arrPtAroudBuyerS[4]
+	arrPtAroudBuyerE[1] = 11
+	arrPtAroudBuyerS[1] = 10
+	arrPtAroudBuyerE[2] = 10
+	arrPtAroudBuyerS[2] = 10
+	arrPtAroudBuyerE[3] = 11
+	arrPtAroudBuyerS[3] = 10
+	arrPtAroudBuyerE[4] = 10
+	arrPtAroudBuyerS[4] = 10
+	///////////////////////////////////////
+	///////////////////////////////////////
+	///////////////////////////////////////
+	
+	//======================
+	//======================
+	dim global arrBlockX[20]
+	dim global arrBlockY[20]
+	
+	//======================
+	//======================
+	dim global nameListX[5]
+	dim global nameListY[5]
+	for i = 1 to 5
+		nameListX[i] = 210 + 3
+		nameListY[i] = 185 + 20 * (i-1) + 22
+	next
+	
+	//=============================
+	//=============================
+	dim global arrFood[2]
+	arrFood[1] = "arr_food_3b.sel"
+	arrFood[2] = "arr_food_4a.sel"
+	
+end function
+
+
+##################################################
+
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+//礦工點礦相關
+
+dim arrBlockPointX[20]
+dim arrBlockPointY[20]
+dim waitForPattern = 200
+
+////////////////////////////////
+
+function IniClickMineralPoint()
+	
+	for i = 1 to ArrayLen(arrBlockPointX, 1)
+		arrBlockPointX[i] = -1
+		arrBlockPointY[i] = -1
+		arrBlockPointX[i+5] = -1
+		arrBlockPointY[i+5] = -1
+		arrBlockPointX[i+10] = -1
+		arrBlockPointY[i+10] = -1
+		arrBlockPointX[i+15] = -1
+		arrBlockPointY[i+15] = -1
+	next
+	
+end function
+
+/////////////////////////////////
+
+function CheckIfSelfPointCorrect(ptE, ptS)
+	FindCurrentPoint()
+	CheckIfSelfPointCorrect = false
+	if eastPoint = ptE or southPoint = ptS then
+		CheckIfSelfPointCorrect = true
+	end if
+end function
+
+/////////////////////////////////
+
+function MakeBagOpen()
+	
+end function
+
+////////////////////////////////
+
+function GetBagInfo()
+	dim global arrIfBlockHasMineral[20]
+	for i = 1 to ArrayLen(arrIfBlockIsMineral, 1)
+		arrIfBlockHasMineral[i] = false
+	next
+	
+	for i = 1 to 20
+		if CheckIfMinePatternFound(i) then
+			arrIfBlockHasMineral[i] = true
+		end if
+	next
+end function
+
+//////////////////////////////////////////////
+
+function CheckIfMinePatternFound(blockNum)
+	MouseMove(arrBlockPointX[blockNum], arrBlockPointY[blockNum])
+	Wait(waitForPattern)
+end function
+
+///////////////////////////////////////////
+
+function MakeBagClose()
+	
+end function
+
+//////////////////////////////////////////////
+
+function WaitUntilMsgBoxOutAndClick()
+	
+end function
+
+/////////////////////////////////////////////
+
+function ClickMineral()
+	
+	IniClickMineralPoint()
+	
+	//check 自己座標是否正確，錯誤退出程式
+	if CheckIfSelfPointCorrect() then
+		//check 物品欄有沒有原礦，沒有就去銀行拿
+		MakeBagOpen()
+		//查看袋裡的原礦資料
+		GetBagInfo()
+		MakeBagClose()
+		
+		FinishAllMineral = false
+		while FinishAllMineral = false
+			
+			for i = 1 to 20
+				
+				while arrIfBlockHasMineral[i] = true
+					
+					count = 0
+					while count <=3 and arrIfBlockHasMineral[i] = true
+						
+						if CheckIfMinePatternFound(i) then
+							MakeBagOpen()
+							MouseLeftDBClick(arrBlockPointX[i], arrBlockPointY[i])
+							WaitUntilMsgBoxOutAndClick()
+						else
+							arrIfBlockHasMineral[i] = false
+						end if
+						
+						count = count + 1
+					wend
+					
+					//賣礦function
+					
+				wend
+				
+			next
+			
+			//GotoBank()
+			
+			//ClickBySelfPoint(refPointE, refPointS)
+			
+			//WaitUntilBankBlock()
+			
+			//GetBankBlockInfo()
+			
+			//MoveNoDuplicateMineToBag()
+			
+			//MakeBankClose()
+			
+			//GotoBuyer()
+			
+		wend
+	else
+		Print("座標錯誤，請檢查。")
+		exit function
+	end if
+	
+end function
+
+
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+function CheckIfFullHP()
+	
+	CheckIfFullHP = false
+	
+	if ReadNumberEX(DigitImgs,Color(CColorR,CColorG, CColorB),27+3,19+22,46+3,28+22,true,nowHP) then
+		
+		if ReadNumberEX(DigitImgs,Color(CColorR,CColorG, CColorB),62+3,19+22,81+3,28+22,true,basicHP) then
+			
+			if nowHP = basicHP then
+				CheckIfFullHP = true
+			end if
+			
+		else
+			Print("找不到原本血量，暫停")
+			Pause()
+		end if
+	else
+		Print("找不到角色血量，暫停")
+		Pause()
+	end if
+	
+end function
+
+///////////////////////////////////////////
+
+function CheckIfEnoughMP()
+	
+	CheckIfEnoughMP = true
+	
+	if ReadNumberEX(DigitImgs,Color(CColorR,CColorG, CColorB),27+3,19+22,46+3,28+22,true,nowMP) then
+		
+		if nowMP < nurseSkillMP then
+			CheckIfEnoughMP = false
+		end if
+		
+	else
+		Print("找不到現在的魔量，暫停")
+	end if
+	
+end function
+
+//////////////////////////////////////////
+
+
+function ReduceSelfHP()
+	
+	OpenItemWin()
+	
+	MoveToButtom()
+	
+	//點擊不死戒
+	if FindImageEX("undeadRing.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+		MouseLeftDBClick(FoundX+10, FoundY+7)
+		Wait(waitCL)
+	else
+		Print("找不到不死戒，暫停")
+		Pause()
+	end if
+	
+	Wait(300)
+	
+	MoveToButtom()
+	
+	//點擊如月戒
+	if FindImageEX("moonRing.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY) then
+		MouseLeftDBClick(FoundX+10, FoundY+7)
+		Wait(waitCL)
+	else
+		Print("找不到如月戒，暫停")
+		Pause()
+	end if
+	
+	CloseItemWin()
+	
+end function
+
+///////////////////////////////////////////
+
+function OpenSkillWin()
+	
+	MoveToButtom()
+	
+	if FindImageEX("btn_skill.sel",Color(CColorR,CColorG, CColorB),104+3,463+22,129+3,475+22,true,FoundX,FoundY) then
+		MoveAndClick(FoundX+5+Rnd()*5, FoundY+4+Rnd()*4)
+		Wait(500)
+	else
+		Print("找不到技能欄，暫停")
+		Pause()
+	end if
+	
+end function
+
+/////////////////////////////////////////
+
+function RecoverSelfHP()
+	
+	while not FindImageEX("selectPlayer.sel",Color(CColorR,CColorG, CColorB),230+3,150+22,304+3,163+22,true,FoundX,FoundY)
+		Print("can not find 'selectPlayer.sel'")
+		Wait(waitFound)
+	wend
+	
+	MoveAndClick(nameListX[1], nameListY[1])
+	
+	while not FindImageEX("selectUnit.sel",Color(CColorR,CColorG, CColorB),474+3,150+22,503+3,163+22,true,FoundX,FoundY)
+		Print("can not find 'selectUnit.sel'")
+		Wait(waitFound)
+	wend
+	
+	MoveAndClick(190 + 5 + Rnd()*5 + 3, 176 + 2 + Rnd()*3 + 22)
+	
+end function
+
+////////////////////////////////////////
+
+function ClickRetry()
+	
+	MoveToButtom()
+	
+	while not FindImageEX("retry.sel",Color(CColorR,CColorG, CColorB),0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+		Print("can not find 'retry.sel'")
+		Wait(waitFound)
+	wend
+	
+	MoveAndClick(FoundX+15+Rnd()*15, FoundY+5+Rnd()*5)
+	
+end function
+
+////////////////////////////////////////

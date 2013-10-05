@@ -1,0 +1,270 @@
+#[HOTKEY]CTRL+F12
+# 在此定義全局變量
+dim eastPoint
+dim southPoint
+dim startPointEast
+dim startPointSouth
+dim mapX = 534
+dim mapY = 53
+dim skillX = 44
+dim skillY = 140
+dim ReachUpEast
+dim ReachUpSouth
+dim ReachDownEast
+dim ReachDownSouth
+dim xBlock = 30
+dim yBlock = 25
+dim waitMM = 200
+dim waitCL = 400
+dim waitPM = 230
+dim walkUp = true
+dim movePoint = 3
+dim skillLen = 16
+dim keepFight = true
+dim DigitImgs[10]
+dim DigitImgs2[10]
+dim arrPlayerOriBlood[5]
+dim arrPlayerOriMagic[5]
+dim monX
+dim monY
+dim isFoundMon = false
+
+dim arrMonX[10]
+dim arrMonY[10]
+
+dim rangeSkX = 130
+dim rangeSkY = 43
+
+function main
+	
+# 在此添加由嚮導創建或錄製的代碼
+
+SetInputMode(0)
+
+//人手輸入array資料
+//"魔力寶貝 5.5.00 [獅子座 III]"
+/*
+arrOfProc = array(5)
+arrOfProc[0] = 
+arrOfProc[1] = 
+arrOfProc[2] = 
+arrOfProc[3] = 
+arrOfProc[4] = 
+*/
+
+clickSystemButton()
+print("1")
+clickLogoutButton()
+print("2")
+clickLogoutToCityButton()
+print("3")
+
+/*
+if FindImage("job.sel",7+2,82+21,227+4,265+23,true,FoundX,FoundY) then
+	Print("地圖沒開"&FoundX&","&FoundY)
+	//drag(FoundX, FoundY, mapX, mapY)
+else
+	print("can not find map icon")
+end if
+*/
+
+/*
+if FindImage("playerSkillClose.sel",424+2,20+21,488+4,40+23,true,FoundX,FoundY) then
+	print("yes: " & FoundX & ", " & FoundY)	
+else
+	print("no")
+end if
+*/
+
+/*
+GetActiveWindowXY(x,y)
+GetActiveWindowSize(width, height)
+Print("新的窗口坐標：" & x & "," & y)
+Print(width & "," & height)
+
+GetActiveWindowID(WinID)
+Print(GetWindowText(WinID))
+Print(WinID)
+*/
+
+
+/*
+//找有多少開
+numOfProc = 1
+isEnd = false
+while isEnd = false
+	FindWindow("魔力寶貝 5.5.00 [獅子座 III]",temp)
+	if temp = firstFormID then
+		isEnd = true
+	else
+		numOfProc = numOfProc + 1
+	end if
+wend
+//將程式id寫進array裡
+arr = Array(numOfProc)
+Print(numOfProc)
+*/
+
+/*
+arr = Array(5)
+for i = 1 to 5
+	FindWindow("魔力寶貝 5.5.00 [獅子座 III]",ID)
+	isEnd = false
+	while isEnd = false
+		
+	wend
+next
+
+4719346
+2819140
+ActiveWindow(8782804)
+*/
+
+/*
+SetInputMode(0)
+
+if FindWindow("魔力寶貝",ID) then
+	Print("找到計算器窗口!激活...")
+	ActiveWindow(ID)
+else
+	Print("沒有找到計算器窗口")
+end if
+
+
+if LoadImage("sure.sel",img) then
+	if FindImage(img,0,0,1024,768,true,FoundX,FoundY) then
+		Print("找到圖像: "&FoundX&","&FoundY)
+	else
+		Print("找不到圖像")
+	end if
+else
+	Beep(800,100)
+end if
+*/
+
+
+/*
+GetActiveWindowID(AppWinID)
+FindChildWindow(AppWinID, "3", Win3)
+FindChildWindow(AppWinID, "4", Win4)
+FindChildWindow(AppWinID, "*", WinMulti)
+FindChildWindow(AppWinID, "=", WinEqual)
+FindChildWindow(AppWinID, "C", WinC)
+SetInputMode(1)
+while true
+	SetTargetWindow(Win3)
+	MouseLeftClick(10,10)
+	wait(500)
+	SetTargetWindow(WinMulti)
+	MouseLeftClick(10,10)
+	wait(500)
+	SetTargetWindow(Win4)
+	MouseLeftClick(10,10)
+	wait(500)
+	SetTargetWindow(WinEqual)
+	MouseLeftClick(10,10)
+	wait(500)
+	SetTargetWindow(WinC)
+	MouseLeftClick(10,10)
+	wait(500)
+wend
+*/
+
+
+
+
+end function
+
+# 在此添加子函數
+
+function drag(srcX, srcY, destX, destY)
+	mousemove(srcX, srcY)
+	wait(waitMM)
+	mouseleftdown()
+	wait(waitCL)
+	mousemove(destX, destY)
+	wait(waitMM)
+	mouseleftup()
+	wait(waitCL)
+end function
+
+
+
+
+function correctPetSkillPoint()
+	if FindImage("petSkillClose.sel",557+2,46+21,621+4,66+23,true,FoundX,FoundY) then
+		mousemove(FoundX+5, FoundY+5)
+		wait(waitMM)
+		MouseLeftClick()
+		wait(waitCL)
+	end if
+	
+	if FindImage("petSkillOpen.sel",557+2,46+21,621+4,66+23,true,FoundX,FoundY) then
+		//調較窗口的位置
+		if FindImage("petSkill.sel",7+2,82+21,227+4,265+23,true,FoundX,FoundY) then
+			if not(FoundX = skillX and FoundY = skillY) then
+				drag(FoundX, FoundY, skillX, skillY)
+			end if
+		else
+			print("can not find skill icon")
+		end if
+	end if
+end function
+
+
+
+
+function correctSkillPoint()
+	if FindImage("playerSkillClose.sel",424+2,20+21,488+4,40+23,true,FoundX,FoundY) then
+		mousemove(FoundX+5, FoundY+5)
+		wait(waitMM)
+		MouseLeftClick()
+		wait(waitCL)
+	end if
+	
+	if FindImage("playerSkillOpen.sel",424+2,20+21,488+4,40+23,true,FoundX,FoundY) then
+		//調較窗口的位置
+		if FindImage("job.sel",7+2,82+21,227+4,265+23,true,FoundX,FoundY) then
+			if not(FoundX = skillX and FoundY = skillY) then
+				drag(FoundX, FoundY, skillX, skillY)
+			end if
+		else
+			print("can not find skill icon")
+		end if
+	end if
+end function
+
+
+function clickSystemButton()
+	//moveToCenter()
+	while not FindImage("system.sel",0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+		wait(500)
+		print("noFound")
+	wend
+	MouseLeftClick(FoundX+10, FoundY+5)
+	wait(2000)
+end function
+
+
+
+function clickLogoutButton()
+	//moveToCenter()
+	while not FindImage("logoutButton.sel",0+3,0+22,1024+3,768+22,true,FoundX,FoundY)
+		wait(500)
+		print("noFound")
+	wend
+	MouseLeftClick(FoundX+25, FoundY+8)
+	wait(2000)
+end function
+
+
+
+function clickLogoutToCityButton()
+	//moveToCenter()
+	while not FindImage("backToCity.sel",0+3,0+22,640+3,480+22,true,FoundX,FoundY)
+		wait(500)
+		print("noFound")
+	wend
+	MouseLeftClick(FoundX+20, FoundY+5)
+	wait(2000)
+end function
